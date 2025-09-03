@@ -11,6 +11,7 @@ Created by isaachhk02
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <stdint.h>
 
 // Function to generate a random key
 char* generateRandomKey(size_t length) {
@@ -60,6 +61,20 @@ void xorEncryptDecrypt(char *data, size_t len, const char *key) {
     }
 }
 
+void displayProgress(size_t bytesProcessed, size_t totalSize) {
+    int barWidth = 50;
+    float progress = (float)bytesProcessed / totalSize;
+    int pos = (int)(barWidth * progress);
+
+    printf("\r[");
+    for (int i = 0; i < barWidth; ++i) {
+        if (i < pos) printf("#");
+        else printf(" ");
+    }
+    printf("] %3d%%", (int)(progress * 100));
+    fflush(stdout);
+}
+
 int encryptDrive(const char *path) {
     FILE *dev = fopen(path, "r+b");  // Use "r+b" for binary read/write
     if (dev == NULL) {
@@ -75,6 +90,11 @@ int encryptDrive(const char *path) {
         return -1;
     }
 
+    // Get total size of the drive/file
+    fseek(dev, 0, SEEK_END);
+    size_t totalSize = ftell(dev);
+    fseek(dev, 0, SEEK_SET);
+
     // Encrypt the entire drive in chunks
     size_t chunkSize = 4096;
     char *buffer = (char*)malloc(chunkSize);
@@ -85,14 +105,18 @@ int encryptDrive(const char *path) {
         return -1;
     }
 
-    fseek(dev, 0, SEEK_SET);
+    size_t bytesProcessed = 0;
     size_t bytesRead;
     while ((bytesRead = fread(buffer, 1, chunkSize, dev)) > 0) {
         xorEncryptDecrypt(buffer, bytesRead, key);
         fseek(dev, -((long)bytesRead), SEEK_CUR);
         fwrite(buffer, 1, bytesRead, dev);
         fflush(dev);
+
+        bytesProcessed += bytesRead;
+        displayProgress(bytesProcessed, totalSize);
     }
+    printf("\n");
 
     // Save the key to a file for decryption
     FILE *keyFile = fopen("encryption_key.bin", "wb");
@@ -130,6 +154,11 @@ int decryptDrive(const char *path) {
         return -1;
     }
 
+    // Get total size of the drive/file
+    fseek(dev, 0, SEEK_END);
+    size_t totalSize = ftell(dev);
+    fseek(dev, 0, SEEK_SET);
+
     // Decrypt the entire drive in chunks
     size_t chunkSize = 4096;
     char *buffer = (char*)malloc(chunkSize);
@@ -140,14 +169,18 @@ int decryptDrive(const char *path) {
         return -1;
     }
 
-    fseek(dev, 0, SEEK_SET);
+    size_t bytesProcessed = 0;
     size_t bytesRead;
     while ((bytesRead = fread(buffer, 1, chunkSize, dev)) > 0) {
         xorEncryptDecrypt(buffer, bytesRead, key);
         fseek(dev, -((long)bytesRead), SEEK_CUR);
         fwrite(buffer, 1, bytesRead, dev);
         fflush(dev);
+
+        bytesProcessed += bytesRead;
+        displayProgress(bytesProcessed, totalSize);
     }
+    printf("\n");
 
     free(key);
     free(buffer);
