@@ -1,5 +1,4 @@
-# Full Drive Encryptor
-
+# USBEncryptor
 A command-line tool for encrypting and decrypting entire storage devices using XOR encryption.
 
 ## ⚠️ WARNING
